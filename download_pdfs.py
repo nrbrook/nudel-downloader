@@ -25,6 +25,7 @@ holders' terms of service and usage rights.
 License: MIT License (see LICENSE file for details)
 """
 
+import argparse
 import os
 import re
 import sys
@@ -604,16 +605,19 @@ def fetch_video_links_from_tutorial_pages():
     return video_map
 
 
-def create_html_gallery(pdf_data, pdf_dir, thumb_dir, output_file, video_map=None):
+def create_html_gallery(
+    pdf_data, pdf_dir, thumb_dir, output_file, video_map=None, use_remote_assets=False
+):
     """
     Create an HTML gallery file displaying all PDFs with thumbnails.
 
     Args:
-        pdf_data: List of tuples (pdf_url, thumbnail_filename, title, pdf_filename)
-        pdf_dir: Directory containing PDFs
-        thumb_dir: Directory containing thumbnails
+        pdf_data: List of tuples (pdf_url, thumbnail_url, title, pdf_filename)
+        pdf_dir: Directory containing PDFs (used when use_remote_assets=False)
+        thumb_dir: Directory containing thumbnails (used when use_remote_assets=False)
         output_file: Path to output HTML file
         video_map: Optional dictionary mapping PDF titles to video URLs
+        use_remote_assets: If True, link to original remote PDFs and images instead of local
     """
     if video_map is None:
         video_map = {}
@@ -803,16 +807,28 @@ def create_html_gallery(pdf_data, pdf_dir, thumb_dir, output_file, video_map=Non
         <div class="gallery">
 """
 
-    for _pdf_url, thumb_filename, title, pdf_filename in pdf_data:
-        thumb_path = f"{thumb_dir}/{thumb_filename}" if thumb_filename else None
-        pdf_path = f"{pdf_dir}/{pdf_filename}"
-
-        if thumb_filename and os.path.exists(thumb_path):
-            thumbnail_html = (
-                f'<img src="{escape(thumb_path)}" alt="{escape(title)}" class="thumbnail">'
-            )
+    for pdf_url, thumb_data, title, pdf_filename in pdf_data:
+        if use_remote_assets:
+            # Use original remote URLs
+            pdf_path = pdf_url
+            thumb_url = thumb_data  # thumb_data is the original URL when use_remote_assets
+            if thumb_url:
+                thumbnail_html = (
+                    f'<img src="{escape(thumb_url)}" alt="{escape(title)}" class="thumbnail">'
+                )
+            else:
+                thumbnail_html = '<div class="thumbnail no-thumbnail">📄 PDF</div>'
         else:
-            thumbnail_html = '<div class="thumbnail no-thumbnail">📄 PDF</div>'
+            # Use local files
+            pdf_path = f"{pdf_dir}/{pdf_filename}"
+            thumb_filename = thumb_data  # thumb_data is the local filename
+            thumb_path = f"{thumb_dir}/{thumb_filename}" if thumb_filename else None
+            if thumb_filename and os.path.exists(thumb_path):
+                thumbnail_html = (
+                    f'<img src="{escape(thumb_path)}" alt="{escape(title)}" class="thumbnail">'
+                )
+            else:
+                thumbnail_html = '<div class="thumbnail no-thumbnail">📄 PDF</div>'
 
         # Find matching video link using fuzzy matching
         level = extract_level(title)
@@ -881,8 +897,103 @@ def create_html_gallery(pdf_data, pdf_dir, thumb_dir, output_file, video_map=Non
     print(f"  ✅ Created HTML gallery: {output_file}")
 
 
+def create_deployable_gallery(output_dir="dist"):
+    """
+    Create a deployable HTML gallery that links to original remote assets.
+
+    This creates a version suitable for deploying to Cloudflare Pages or similar,
+    without downloading any copyrighted content (PDFs or images).
+
+    Args:
+        output_dir: Directory to output the deployable files
+    """
+    url = "https://nudel.shop/pages/step-by-step"
+
+    # Create output directory
+    Path(output_dir).mkdir(exist_ok=True)
+    print(f"📁 Output directory: {os.path.abspath(output_dir)}\n")
+
+    # Fetch the webpage
+    print(f"🌐 Fetching {url}...")
+    try:
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Error fetching webpage: {e}")
+        sys.exit(1)
+
+    # Parse the HTML
+    print("🔍 Parsing HTML and searching for PDFs and thumbnails...")
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Find all PDF links with thumbnails
+    pdf_data = find_pdf_links_with_thumbnails(soup, url)
+
+    if not pdf_data:
+        print("⚠️  No PDF links found on the page.")
+        sys.exit(0)
+
+    print(f"📄 Found {len(pdf_data)} PDF(s)")
+
+    # Prepare data for gallery (pdf_url, thumb_url, title, pdf_filename)
+    processed_data = []
+    for pdf_url, thumb_url, title in pdf_data:
+        parsed = urlparse(pdf_url)
+        pdf_filename = os.path.basename(parsed.path)
+        # For remote assets, thumb_data is the original URL
+        processed_data.append((pdf_url, thumb_url, title, pdf_filename))
+
+    # Fetch video links from tutorial pages
+    print("\n🎥 Fetching video links from tutorial pages...")
+    video_map = fetch_video_links_from_tutorial_pages()
+    if video_map:
+        print(f"  ✅ Found {len(video_map)} video link(s)")
+
+    # Create HTML gallery with remote assets
+    print("\n🎨 Creating deployable HTML gallery...")
+    html_file = os.path.join(output_dir, "index.html")
+    create_html_gallery(processed_data, "", "", html_file, video_map, use_remote_assets=True)
+
+    print(f"\n{'=' * 60}")
+    print("📊 Deployable Gallery Created:")
+    print(f"   📁 Output directory: {os.path.abspath(output_dir)}")
+    print(f"   🌐 Gallery: {os.path.abspath(html_file)}")
+    print("\n   To deploy to Cloudflare Pages:")
+    print(f"   1. Run: npx wrangler pages deploy {output_dir}")
+    print("   Or use the deploy script: ./deploy.sh")
+    print(f"{'=' * 60}")
+
+
 def main():
     """Main function to download all PDFs and thumbnails from the page."""
+    parser = argparse.ArgumentParser(
+        description="Download Nudel step-by-step PDF guides and create an HTML gallery.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s                    Download PDFs and create local gallery
+  %(prog)s --deploy           Create deployable gallery (no downloads)
+  %(prog)s --deploy -o site   Create deployable gallery in 'site' directory
+        """,
+    )
+    parser.add_argument(
+        "--deploy",
+        action="store_true",
+        help="Create a deployable gallery linking to original remote assets (no downloads)",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        default="dist",
+        help="Output directory for deployable gallery (default: dist)",
+    )
+    args = parser.parse_args()
+
+    if args.deploy:
+        create_deployable_gallery(args.output)
+        return
+
     url = "https://nudel.shop/pages/step-by-step"
     pdf_dir = "pdfs"
     thumb_dir = "thumbnails"
