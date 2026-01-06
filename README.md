@@ -10,33 +10,19 @@ So I created this Python script to download all PDFs and thumbnails from the Nud
 
 This script is provided for **personal use only** with **no guarantees**. Use at your own risk. The authors are not responsible for any misuse of this script or any content downloaded through it. Please respect the original copyright holders' terms of service and usage rights.
 
-## Installation
+## Usage
 
-Install the required dependencies using `uv`:
+Run the script with `uv` (recommended):
 
 ```bash
-# Create a virtual environment
-uv venv
-
-# Activate the virtual environment
-source .venv/bin/activate  # On macOS/Linux
-# or
-.venv\Scripts\activate  # On Windows
-
-# Install dependencies
-uv pip install -r requirements.txt
-
-# Install development dependencies (for linting)
-uv pip install -e ".[dev]"
-
-# Set up pre-commit hooks
-pre-commit install
+uv run python download_pdfs.py
 ```
 
-Alternatively, install directly without a virtual environment:
+Or with `pip`:
 
 ```bash
-uv pip install -r requirements.txt --system
+pip install requests beautifulsoup4 lxml
+python download_pdfs.py
 ```
 
 ## Development
@@ -49,38 +35,39 @@ This project uses:
 
 ```bash
 # Check for linting issues
-ruff check download_pdfs.py
+uv run ruff check download_pdfs.py
 
 # Auto-fix linting issues
-ruff check --fix download_pdfs.py
+uv run ruff check --fix download_pdfs.py
 
 # Format code
-ruff format download_pdfs.py
+uv run ruff format download_pdfs.py
 ```
 
 ### Pre-commit Hooks
 
+Set up pre-commit hooks (optional):
+
+```bash
+uv run pre-commit install
+```
+
 Pre-commit hooks are automatically run on `git commit`. To run them manually:
 
 ```bash
-pre-commit run --all-files
+uv run pre-commit run --all-files
 ```
 
-## Usage
-
-Run the script:
-
-```bash
-python download_pdfs.py
-```
+## What the Script Does
 
 The script will:
 1. Fetch the webpage from https://nudel.shop/pages/step-by-step
 2. Find all PDF links and their associated thumbnails on the page
-3. Download each PDF to the `pdfs/` directory
-4. Download thumbnails to the `thumbnails/` directory
-5. Create an HTML gallery (`gallery.html`) to browse all PDFs with thumbnails
-6. Display a summary of successful and failed downloads
+3. Fetch video links from tutorial pages (level 1-4)
+4. Download each PDF to the `pdfs/` directory
+5. Download thumbnails to the `thumbnails/` directory
+6. Create an HTML gallery (`gallery.html`) with PDFs, thumbnails, and video links
+7. Display a summary of successful and failed downloads
 
 ## Output
 
