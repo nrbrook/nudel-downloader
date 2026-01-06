@@ -28,12 +28,165 @@ License: MIT License (see LICENSE file for details)
 import os
 import re
 import sys
+from difflib import SequenceMatcher
 from html import escape
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
+
+
+def normalize_title(title):
+    """
+    Normalize a title for comparison by removing level prefix, punctuation, and extra whitespace.
+
+    Args:
+        title: The title string to normalize
+
+    Returns:
+        Normalized lowercase string with consistent formatting
+    """
+    if not title:
+        return ""
+    # Convert to lowercase
+    normalized = title.lower()
+    # Remove "level X -" or "level X" prefix
+    normalized = re.sub(r"^level\s*\d+\s*[-–—:]?\s*", "", normalized)
+    # Replace underscores and hyphens with spaces
+    normalized = normalized.replace("_", " ").replace("-", " ")
+    # Remove punctuation except spaces
+    normalized = re.sub(r"[^\w\s]", "", normalized)
+    # Collapse multiple spaces into one
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return normalized
+
+
+def extract_level(title):
+    """
+    Extract the level number from a title.
+
+    Args:
+        title: The title string to extract level from
+
+    Returns:
+        Integer level number (1-4) or None if not found
+    """
+    if not title:
+        return None
+    match = re.search(r"level\s*(\d+)", title.lower())
+    return int(match.group(1)) if match else None
+
+
+def tokenize(text):
+    """
+    Split text into a set of normalized tokens for comparison.
+
+    Args:
+        text: The text to tokenize
+
+    Returns:
+        Set of lowercase word tokens
+    """
+    return set(normalize_title(text).split())
+
+
+def calculate_match_score(title1, title2):
+    """
+    Calculate a similarity score between two titles using multiple strategies.
+
+    Args:
+        title1: First title to compare
+        title2: Second title to compare
+
+    Returns:
+        Float score between 0 and 1, where 1 is a perfect match
+    """
+    norm1 = normalize_title(title1)
+    norm2 = normalize_title(title2)
+
+    if not norm1 or not norm2:
+        return 0.0
+
+    # Exact normalized match
+    if norm1 == norm2:
+        return 1.0
+
+    # Token-based Jaccard similarity
+    tokens1 = tokenize(title1)
+    tokens2 = tokenize(title2)
+    if tokens1 and tokens2:
+        intersection = len(tokens1 & tokens2)
+        union = len(tokens1 | tokens2)
+        jaccard = intersection / union if union > 0 else 0
+    else:
+        jaccard = 0
+
+    # Sequence matcher ratio (handles word order and partial matches)
+    sequence_ratio = SequenceMatcher(None, norm1, norm2).ratio()
+
+    # Substring containment bonus
+    containment_bonus = 0.0
+    if norm1 in norm2 or norm2 in norm1:
+        containment_bonus = 0.3
+
+    # Combined score weighted toward token matching
+    score = max(jaccard * 0.6 + sequence_ratio * 0.4 + containment_bonus, sequence_ratio)
+
+    return min(score, 1.0)
+
+
+def find_best_video_match(title, video_map, level=None, min_score=0.6):
+    """
+    Find the best matching video URL for a given title.
+
+    Args:
+        title: The PDF title to find a video for
+        video_map: Dictionary mapping titles to video URLs
+        level: Optional level number to prefer matches from the same level
+        min_score: Minimum similarity score required for a match
+
+    Returns:
+        Video URL if a match is found, None otherwise
+    """
+    if not title or not video_map:
+        return None
+
+    title_norm = normalize_title(title)
+
+    # Try exact normalized match first
+    for key, url in video_map.items():
+        if normalize_title(key) == title_norm:
+            return url
+
+    # Find best fuzzy match
+    best_score = 0.0
+    best_url = None
+    best_level_match = False
+
+    for key, url in video_map.items():
+        score = calculate_match_score(title, key)
+
+        # Check if this key matches the same level
+        key_level = extract_level(key)
+        same_level = level is not None and key_level == level
+
+        # Prefer same-level matches when scores are close
+        if score > min_score:
+            is_better = (
+                score > best_score + 0.1  # Significantly better score
+                or (
+                    score > best_score - 0.05 and same_level and not best_level_match
+                )  # Similar score but better level match
+            )
+            if (is_better or best_url is None) and (
+                score > best_score or (same_level and not best_level_match)
+            ):
+                best_score = score
+                best_url = url
+                best_level_match = same_level
+
+    return best_url
 
 
 def find_pdf_links_with_thumbnails(soup, base_url):
@@ -343,6 +496,24 @@ def fetch_video_links_from_tutorial_pages():
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
 
+    def store_video_mapping(title, video_url, level_prefix):
+        """Store video mapping with multiple key variations for better matching."""
+        if not title or not video_url:
+            return
+        title = title.strip()
+        if len(title) < 3:
+            return
+        # Store original title
+        video_map[title.lower()] = video_url
+        # Store with level prefix
+        full_title = f"{level_prefix.lower()} {title.lower()}".strip()
+        video_map[full_title] = video_url
+        # Store normalized version
+        normalized = normalize_title(title)
+        if normalized:
+            video_map[normalized] = video_url
+            video_map[f"{level_prefix.lower()} {normalized}"] = video_url
+
     for tutorial_url, level_prefix in tutorial_urls:
         try:
             print(f"  🔍 Fetching videos from {tutorial_url}...")
@@ -352,75 +523,77 @@ def fetch_video_links_from_tutorial_pages():
 
             # Find all video embeds (iframes)
             for iframe in soup.find_all("iframe"):
-                # Check both src and data-src attributes
                 src = iframe.get("src", "") or iframe.get("data-src", "")
                 if not src or (
                     "youtube.com" not in src and "youtu.be" not in src and "vimeo.com" not in src
                 ):
                     continue
-                # Extract clean YouTube URL (remove query parameters for cleaner links)
+                # Extract clean YouTube URL
                 if "youtube.com/embed/" in src:
                     video_id = src.split("/embed/")[1].split("?")[0]
                     src = f"https://www.youtube.com/watch?v={video_id}"
 
-                # Look for nearby PDF links or text that might identify the project
+                title_found = False
+
+                # Look for title in previous siblings of the iframe's parent
                 parent = iframe.parent
-                for _depth in range(6):  # Check up to 6 levels up
-                    if not parent:
-                        break
+                if parent:
+                    for sibling in parent.previous_siblings:
+                        if hasattr(sibling, "get_text"):
+                            text = sibling.get_text(strip=True)
+                            if text and len(text) > 2 and len(text) < 100:
+                                store_video_mapping(text, src, level_prefix)
+                                title_found = True
+                                break
+                        elif isinstance(sibling, str):
+                            text = sibling.strip()
+                            if text and len(text) > 2 and len(text) < 100:
+                                store_video_mapping(text, src, level_prefix)
+                                title_found = True
+                                break
 
-                    # Look for PDF links in the same container
-                    for pdf_link in parent.find_all("a", href=True):
-                        href = pdf_link.get("href", "")
-                        if ".pdf" in href.lower():
-                            # Extract PDF name and create title
-                            parsed = urlparse(href)
-                            pdf_name = os.path.splitext(os.path.basename(parsed.path))[0]
-                            # Normalize the title
-                            title = pdf_name.replace("_", " ").replace("-", " ").strip()
-                            title_lower = title.lower()
-                            # Store with level prefix
-                            full_title = f"{level_prefix.lower()} {title_lower}".strip()
-                            video_map[full_title] = src
-                            # Also store without level prefix for flexible matching
-                            video_map[title_lower] = src
+                # If no title found from siblings, look for nearby PDF links (limited scope)
+                if not title_found:
+                    search_parent = iframe.parent
+                    for _depth in range(3):
+                        if not search_parent:
                             break
+                        # Only check direct children for PDF links, not entire subtree
+                        for child in search_parent.children:
+                            if hasattr(child, "find_all"):
+                                for pdf_link in child.find_all("a", href=True, recursive=False):
+                                    href = pdf_link.get("href", "")
+                                    if ".pdf" in href.lower():
+                                        parsed = urlparse(href)
+                                        pdf_name = os.path.splitext(os.path.basename(parsed.path))[
+                                            0
+                                        ]
+                                        title = pdf_name.replace("_", " ").replace("-", " ").strip()
+                                        store_video_mapping(title, src, level_prefix)
+                                        title_found = True
+                                        break
+                            if title_found:
+                                break
+                        if title_found:
+                            break
+                        search_parent = search_parent.parent
 
-                    # Also check for text content that might match project names
-                    # Look for headings or strong text near the iframe
-                    for heading in parent.find_all(
-                        ["h1", "h2", "h3", "h4", "h5", "h6", "strong", "b"]
-                    ):
-                        heading_text = heading.get_text(strip=True)
-                        if heading_text and len(heading_text) > 5:
-                            # Normalize and store
-                            heading_lower = heading_text.lower()
-                            video_map[heading_lower] = src
-                            # Also try with level prefix
-                            full_heading = f"{level_prefix.lower()} {heading_lower}".strip()
-                            video_map[full_heading] = src
-
-                    parent = parent.parent
-
-            # Look for direct YouTube/Vimeo links
+            # Look for direct YouTube/Vimeo links with nearby PDF links
             for link in soup.find_all("a", href=True):
                 href = link.get("href", "")
                 if "youtube.com" in href or "youtu.be" in href or "vimeo.com" in href:
-                    # Try to find associated PDF in nearby elements
                     parent = link.parent
-                    for _ in range(4):
+                    for _ in range(3):
                         if not parent:
                             break
-                        for pdf_link in parent.find_all("a", href=True):
+                        # Look for PDF links in parent's direct children
+                        for pdf_link in parent.find_all("a", href=True, recursive=False):
                             pdf_href = pdf_link.get("href", "")
                             if ".pdf" in pdf_href.lower():
                                 parsed = urlparse(pdf_href)
                                 pdf_name = os.path.splitext(os.path.basename(parsed.path))[0]
                                 title = pdf_name.replace("_", " ").replace("-", " ").strip()
-                                title_lower = title.lower()
-                                full_title = f"{level_prefix.lower()} {title_lower}".strip()
-                                video_map[full_title] = href
-                                video_map[title_lower] = href
+                                store_video_mapping(title, href, level_prefix)
                                 break
                         parent = parent.parent if parent else None
 
@@ -629,21 +802,9 @@ def create_html_gallery(pdf_data, pdf_dir, thumb_dir, output_file, video_map=Non
         else:
             thumbnail_html = '<div class="thumbnail no-thumbnail">📄 PDF</div>'
 
-        # Find matching video link
-        video_url = None
-        title_lower = title.lower()
-        # Try exact match first
-        if title_lower in video_map:
-            video_url = video_map[title_lower]
-        else:
-            # Try partial matches (e.g., "Level 1   Art Easel" might match "art easel")
-            for key, url in video_map.items():
-                # Remove "Level X" prefix and compare
-                key_clean = re.sub(r"^level\s+\d+\s+", "", key).strip()
-                title_clean = re.sub(r"^level\s+\d+\s+", "", title_lower).strip()
-                if key_clean in title_clean or title_clean in key_clean:
-                    video_url = url
-                    break
+        # Find matching video link using fuzzy matching
+        level = extract_level(title)
+        video_url = find_best_video_match(title, video_map, level=level)
 
         # Build links section
         links_html = (
