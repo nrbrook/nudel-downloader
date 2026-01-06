@@ -648,8 +648,8 @@ def create_html_gallery(
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 15px;
             margin-bottom: 30px;
+            position: relative;
         }}
         h1 {{
             color: white;
@@ -657,6 +657,13 @@ def create_html_gallery(
             font-size: 2.5em;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
             margin: 0;
+        }}
+        .github-link {{
+            position: absolute;
+            right: 0;
+            color: white;
+            opacity: 0.8;
+            transition: opacity 0.2s ease, transform 0.2s ease;
         }}
         .stats {{
             background: white;
@@ -698,11 +705,6 @@ def create_html_gallery(
         }}
         .video-button {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }}
-        .github-link {{
-            color: white;
-            opacity: 0.8;
-            transition: opacity 0.2s ease, transform 0.2s ease;
         }}
         .github-link:hover {{
             opacity: 1;
