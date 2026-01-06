@@ -317,7 +317,114 @@ def download_pdf(url, output_dir):
         return False, filename if "filename" in locals() else "unknown.pdf", str(e)
 
 
-def create_html_gallery(pdf_data, pdf_dir, thumb_dir, output_file):
+def fetch_video_links_from_tutorial_pages():
+    """
+    Fetch video links from tutorial pages for each level.
+
+    Returns:
+        Dictionary mapping PDF titles to video URLs
+    """
+    video_map = {}
+    tutorial_urls = [
+        ("https://nudel.shop/pages/level-1-tutorial", "Level 1"),
+        ("https://nudel.shop/pages/level-2-tutorial", "Level 2"),
+        ("https://nudel.shop/pages/level-3-tutorial", "Level 3"),
+        ("https://nudel.shop/pages/level-4-tutorial", "Level 4"),
+    ]
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
+
+    for tutorial_url, level_prefix in tutorial_urls:
+        try:
+            print(f"  🔍 Fetching videos from {tutorial_url}...")
+            response = requests.get(tutorial_url, headers=headers, timeout=30)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, "html.parser")
+
+            # Find all video embeds (iframes)
+            for iframe in soup.find_all("iframe"):
+                # Check both src and data-src attributes
+                src = iframe.get("src", "") or iframe.get("data-src", "")
+                if not src or (
+                    "youtube.com" not in src and "youtu.be" not in src and "vimeo.com" not in src
+                ):
+                    continue
+                # Extract clean YouTube URL (remove query parameters for cleaner links)
+                if "youtube.com/embed/" in src:
+                    video_id = src.split("/embed/")[1].split("?")[0]
+                    src = f"https://www.youtube.com/watch?v={video_id}"
+
+                # Look for nearby PDF links or text that might identify the project
+                parent = iframe.parent
+                for _depth in range(6):  # Check up to 6 levels up
+                    if not parent:
+                        break
+
+                    # Look for PDF links in the same container
+                    for pdf_link in parent.find_all("a", href=True):
+                        href = pdf_link.get("href", "")
+                        if ".pdf" in href.lower():
+                            # Extract PDF name and create title
+                            parsed = urlparse(href)
+                            pdf_name = os.path.splitext(os.path.basename(parsed.path))[0]
+                            # Normalize the title
+                            title = pdf_name.replace("_", " ").replace("-", " ").strip()
+                            title_lower = title.lower()
+                            # Store with level prefix
+                            full_title = f"{level_prefix.lower()} {title_lower}".strip()
+                            video_map[full_title] = src
+                            # Also store without level prefix for flexible matching
+                            video_map[title_lower] = src
+                            break
+
+                    # Also check for text content that might match project names
+                    # Look for headings or strong text near the iframe
+                    for heading in parent.find_all(
+                        ["h1", "h2", "h3", "h4", "h5", "h6", "strong", "b"]
+                    ):
+                        heading_text = heading.get_text(strip=True)
+                        if heading_text and len(heading_text) > 5:
+                            # Normalize and store
+                            heading_lower = heading_text.lower()
+                            video_map[heading_lower] = src
+                            # Also try with level prefix
+                            full_heading = f"{level_prefix.lower()} {heading_lower}".strip()
+                            video_map[full_heading] = src
+
+                    parent = parent.parent
+
+            # Look for direct YouTube/Vimeo links
+            for link in soup.find_all("a", href=True):
+                href = link.get("href", "")
+                if "youtube.com" in href or "youtu.be" in href or "vimeo.com" in href:
+                    # Try to find associated PDF in nearby elements
+                    parent = link.parent
+                    for _ in range(4):
+                        if not parent:
+                            break
+                        for pdf_link in parent.find_all("a", href=True):
+                            pdf_href = pdf_link.get("href", "")
+                            if ".pdf" in pdf_href.lower():
+                                parsed = urlparse(pdf_href)
+                                pdf_name = os.path.splitext(os.path.basename(parsed.path))[0]
+                                title = pdf_name.replace("_", " ").replace("-", " ").strip()
+                                title_lower = title.lower()
+                                full_title = f"{level_prefix.lower()} {title_lower}".strip()
+                                video_map[full_title] = href
+                                video_map[title_lower] = href
+                                break
+                        parent = parent.parent if parent else None
+
+        except Exception as e:
+            print(f"  ⚠️  Warning: Could not fetch videos from {tutorial_url}: {e}")
+            continue
+
+    return video_map
+
+
+def create_html_gallery(pdf_data, pdf_dir, thumb_dir, output_file, video_map=None):
     """
     Create an HTML gallery file displaying all PDFs with thumbnails.
 
@@ -326,7 +433,10 @@ def create_html_gallery(pdf_data, pdf_dir, thumb_dir, output_file):
         pdf_dir: Directory containing PDFs
         thumb_dir: Directory containing thumbnails
         output_file: Path to output HTML file
+        video_map: Optional dictionary mapping PDF titles to video URLs
     """
+    if video_map is None:
+        video_map = {}
     # Use double curly braces to escape them in format strings
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -452,6 +562,27 @@ def create_html_gallery(pdf_data, pdf_dir, thumb_dir, output_file):
         .card-link:hover {{
             opacity: 0.9;
         }}
+        .card-links {{
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: auto;
+        }}
+        .video-link {{
+            display: inline-block;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: 500;
+            transition: opacity 0.3s ease;
+            font-size: 0.9em;
+        }}
+        .video-link:hover {{
+            opacity: 0.9;
+        }}
         .no-thumbnail {{
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
@@ -491,12 +622,37 @@ def create_html_gallery(pdf_data, pdf_dir, thumb_dir, output_file):
         else:
             thumbnail_html = '<div class="thumbnail no-thumbnail">📄 PDF</div>'
 
+        # Find matching video link
+        video_url = None
+        title_lower = title.lower()
+        # Try exact match first
+        if title_lower in video_map:
+            video_url = video_map[title_lower]
+        else:
+            # Try partial matches (e.g., "Level 1   Art Easel" might match "art easel")
+            for key, url in video_map.items():
+                # Remove "Level X" prefix and compare
+                key_clean = re.sub(r"^level\s+\d+\s+", "", key).strip()
+                title_clean = re.sub(r"^level\s+\d+\s+", "", title_lower).strip()
+                if key_clean in title_clean or title_clean in key_clean:
+                    video_url = url
+                    break
+
+        # Build links section
+        links_html = (
+            f'<a href="{escape(pdf_path)}" class="card-link" target="_blank">View PDF →</a>'
+        )
+        if video_url:
+            links_html = f'<div class="card-links">{links_html}<a href="{escape(video_url)}" class="video-link" target="_blank">📹 Watch Video →</a></div>'
+        else:
+            links_html = f'<div class="card-links">{links_html}</div>'
+
         html_content += f"""
             <div class="card">
                 {thumbnail_html}
                 <div class="card-content">
                     <div class="card-title">{escape(title)}</div>
-                    <a href="{escape(pdf_path)}" class="card-link" target="_blank">View PDF →</a>
+                    {links_html}
                 </div>
             </div>
 """
@@ -612,10 +768,16 @@ def main():
 
         processed_data.append((pdf_url, thumb_filename, title, pdf_filename))
 
+    # Fetch video links from tutorial pages
+    print("\n🎥 Fetching video links from tutorial pages...")
+    video_map = fetch_video_links_from_tutorial_pages()
+    if video_map:
+        print(f"  ✅ Found {len(video_map)} video link(s)")
+
     # Create HTML gallery
     print("\n🎨 Creating HTML gallery...")
     html_file = "gallery.html"
-    create_html_gallery(processed_data, pdf_dir, thumb_dir, html_file)
+    create_html_gallery(processed_data, pdf_dir, thumb_dir, html_file, video_map)
 
     # Summary
     print(f"\n{'=' * 60}")
