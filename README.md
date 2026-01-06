@@ -1,8 +1,8 @@
-# Nudel PDF Downloader
+# Nüdel Pod Step-by-Step Guides Gallery Creator/Downloader
 
-I bought a Nudel Pod for my daughter for Christmas 2025. She loves it, and I wanted to create a gallery of the step-by-step guides for easy and quick access to the guides and videos, even offline.
+I bought a [Nüdel Pod](https://nudel.shop) for my daughter for Christmas 2025. She loves it, and I wanted to create a gallery of the step-by-step guides for easy and quick access to the guides and videos, even offline.
 
-So I created this Python script to download all PDFs and thumbnails from the Nudel step-by-step guides page, and create an HTML gallery to browse them, along with links to the videos on YouTube and a random PDF button.
+So I created this Python script to download all PDFs and thumbnails from the [Nüdel Pod step-by-step guides page](https://nudel.shop/pages/step-by-step), and create an HTML gallery to browse them, along with links to the videos on YouTube and a random PDF button.
 
 ## Disclaimer
 
