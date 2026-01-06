@@ -679,6 +679,15 @@ def create_html_gallery(pdf_data, pdf_dir, thumb_dir, output_file, video_map=Non
         .random-button:active {{
             transform: translateY(0);
         }}
+        .button-group {{
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }}
+        .video-button {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }}
         @media (max-width: 768px) {{
             .stats {{
                 flex-direction: column;
@@ -786,7 +795,10 @@ def create_html_gallery(pdf_data, pdf_dir, thumb_dir, output_file, video_map=Non
             <div>
                 <strong>Total Guides:</strong> {len(pdf_data)}
             </div>
-            <button class="random-button" onclick="openRandomPDF()">🎲 Random PDF</button>
+            <div class="button-group">
+                <button class="random-button" onclick="openRandomPDF()">🎲 Random PDF</button>
+                <button class="random-button video-button" onclick="openRandomVideo()">🎬 Random Video</button>
+            </div>
         </div>
         <div class="gallery">
 """
@@ -835,16 +847,28 @@ def create_html_gallery(pdf_data, pdf_dir, thumb_dir, output_file, video_map=Non
             pdfLinks.push(link.href);
         }});
 
+        // Collect all video links
+        const videoLinks = [];
+        document.querySelectorAll('.video-link').forEach(link => {{
+            videoLinks.push(link.href);
+        }});
+
         function openRandomPDF() {{
             if (pdfLinks.length === 0) {{
                 alert('No PDFs available');
                 return;
             }}
-            // Select a random PDF
             const randomIndex = Math.floor(Math.random() * pdfLinks.length);
-            const randomPDF = pdfLinks[randomIndex];
-            // Open in new tab
-            window.open(randomPDF, '_blank');
+            window.open(pdfLinks[randomIndex], '_blank');
+        }}
+
+        function openRandomVideo() {{
+            if (videoLinks.length === 0) {{
+                alert('No videos available');
+                return;
+            }}
+            const randomIndex = Math.floor(Math.random() * videoLinks.length);
+            window.open(videoLinks[randomIndex], '_blank');
         }}
     </script>
 </body>
