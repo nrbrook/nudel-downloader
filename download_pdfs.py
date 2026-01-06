@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = [
+#     "requests>=2.31.0",
+#     "beautifulsoup4>=4.12.0",
+#     "lxml>=4.9.0",
+# ]
+# ///
 """
 Script to download all PDFs from https://nudel.shop/pages/step-by-step
 
