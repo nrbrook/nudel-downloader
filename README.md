@@ -1,6 +1,8 @@
 # Nudel PDF Downloader
 
-A Python script to download all PDFs and thumbnails from the Nudel step-by-step guides page, and create an HTML gallery to browse them.
+I bought a Nudel Pod for my daughter for Christmas 2025. She loves it, and I wanted to create a gallery of the step-by-step guides for easy and quick access to the guides and videos, even offline.
+
+So I created this Python script to download all PDFs and thumbnails from the Nudel step-by-step guides page, and create an HTML gallery to browse them, along with links to the videos on YouTube and a random PDF button.
 
 ## Disclaimer
 
