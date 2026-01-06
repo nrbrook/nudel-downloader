@@ -800,7 +800,7 @@ def create_html_gallery(
                 <strong>Total Guides:</strong> {len(pdf_data)}
             </div>
             <div class="button-group">
-                <button class="random-button" onclick="openRandomPDF()">🎲 Random PDF</button>
+                <button class="random-button" onclick="openRandomPDF()">🎲 Random Guide</button>
                 <button class="random-button video-button" onclick="openRandomVideo()">🎬 Random Video</button>
             </div>
         </div>
@@ -817,7 +817,7 @@ def create_html_gallery(
                     f'<img src="{escape(thumb_url)}" alt="{escape(title)}" class="thumbnail">'
                 )
             else:
-                thumbnail_html = '<div class="thumbnail no-thumbnail">📄 PDF</div>'
+                thumbnail_html = '<div class="thumbnail no-thumbnail">📄 Guide</div>'
         else:
             # Use local files
             pdf_path = f"{pdf_dir}/{pdf_filename}"
@@ -828,7 +828,7 @@ def create_html_gallery(
                     f'<img src="{escape(thumb_path)}" alt="{escape(title)}" class="thumbnail">'
                 )
             else:
-                thumbnail_html = '<div class="thumbnail no-thumbnail">📄 PDF</div>'
+                thumbnail_html = '<div class="thumbnail no-thumbnail">📄 Guide</div>'
 
         # Find matching video link using fuzzy matching
         level = extract_level(title)
@@ -836,7 +836,7 @@ def create_html_gallery(
 
         # Build links section
         links_html = (
-            f'<a href="{escape(pdf_path)}" class="card-link" target="_blank">View PDF →</a>'
+            f'<a href="{escape(pdf_path)}" class="card-link" target="_blank">View Guide →</a>'
         )
         if video_url:
             links_html = f'<div class="card-links">{links_html}<a href="{escape(video_url)}" class="video-link" target="_blank">📹 Watch Video →</a></div>'
@@ -871,7 +871,7 @@ def create_html_gallery(
 
         function openRandomPDF() {{
             if (pdfLinks.length === 0) {{
-                alert('No PDFs available');
+                alert('No guides available');
                 return;
             }}
             const randomIndex = Math.floor(Math.random() * pdfLinks.length);
