@@ -627,7 +627,7 @@ def create_html_gallery(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nudel Step-by-Step Guides</title>
+    <title>Nüdel Pod Step-by-Step Guides</title>
     <style>
         * {{
             margin: 0;
@@ -794,7 +794,7 @@ def create_html_gallery(
 </head>
 <body>
     <div class="container">
-        <h1>📚 Nudel Step-by-Step Guides</h1>
+        <h1>📚 Nüdel Pod Step-by-Step Guides</h1>
         <div class="stats">
             <div>
                 <strong>Total Guides:</strong> {len(pdf_data)}
@@ -968,7 +968,7 @@ def create_deployable_gallery(output_dir="dist"):
 def main():
     """Main function to download all PDFs and thumbnails from the page."""
     parser = argparse.ArgumentParser(
-        description="Download Nudel step-by-step PDF guides and create an HTML gallery.",
+        description="Download Nüdel Pod step-by-step PDF guides and create an HTML gallery.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
