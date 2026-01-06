@@ -10,6 +10,9 @@ dependencies = [
     "lxml>=4.9.0",
 ]
 
+[project.scripts]
+download_pdfs = "download_pdfs:main"
+
 [project.optional-dependencies]
 dev = [
     "ruff>=0.1.0",
@@ -19,6 +22,12 @@ dev = [
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["download_pdfs"]
+
+[tool.setuptools.packages.find]
+exclude = ["pdfs*", "thumbnails*"]
 
 [tool.ruff]
 target-version = "py39"

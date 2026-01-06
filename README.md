@@ -15,7 +15,7 @@ This script is provided for **personal use only** with **no guarantees**. Use at
 Run the script with `uv` (recommended):
 
 ```bash
-uv run python download_pdfs.py
+uv run download_pdfs
 ```
 
 Or with `pip`:
