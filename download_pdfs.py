@@ -63,9 +63,16 @@ def normalize_title(title):
     return normalized
 
 
+# Override map for guides with incorrect level in filename
+LEVEL_OVERRIDES = {
+    "pram for toys": 1,
+    "push pram": 3,
+}
+
+
 def extract_level(title):
     """
-    Extract the level number from a title.
+    Extract the level number from a title, with support for manual overrides.
 
     Args:
         title: The title string to extract level from
@@ -75,6 +82,12 @@ def extract_level(title):
     """
     if not title:
         return None
+
+    # Check for manual overrides first
+    normalized = normalize_title(title)
+    if normalized in LEVEL_OVERRIDES:
+        return LEVEL_OVERRIDES[normalized]
+
     match = re.search(r"level\s*(\d+)", title.lower())
     return int(match.group(1)) if match else None
 
@@ -355,7 +368,14 @@ def find_pdf_links_with_thumbnails(soup, base_url):
                     )
                     pdf_data.append((absolute_url, None, title))
 
-    return sorted(pdf_data, key=lambda x: x[0])
+    # Sort by corrected level first, then alphabetically by display title
+    def sort_key(item):
+        _url, _thumb, title = item
+        level = extract_level(title) or 99  # Put items without level at the end
+        display_title = get_display_title(title).lower()
+        return (level, display_title)
+
+    return sorted(pdf_data, key=sort_key)
 
 
 def download_image(url, output_dir, filename=None):
