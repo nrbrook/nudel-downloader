@@ -605,6 +605,21 @@ def fetch_video_links_from_tutorial_pages():
     return video_map
 
 
+def get_display_title(title):
+    """
+    Get display title by removing the level prefix.
+
+    Args:
+        title: The full title potentially containing level prefix
+
+    Returns:
+        Title with level prefix removed
+    """
+    if not title:
+        return ""
+    return re.sub(r"^Level\s*\d+\s*[-–—:]?\s*", "", title, flags=re.IGNORECASE).strip()
+
+
 def create_html_gallery(
     pdf_data, pdf_dir, thumb_dir, output_file, video_map=None, use_remote_assets=False
 ):
@@ -621,6 +636,14 @@ def create_html_gallery(
     """
     if video_map is None:
         video_map = {}
+
+    # Count guides per level for display
+    level_counts = {1: 0, 2: 0, 3: 0, 4: 0}
+    for _, _, title, _ in pdf_data:
+        level = extract_level(title)
+        if level in level_counts:
+            level_counts[level] += 1
+
     # Use double curly braces to escape them in format strings
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -665,18 +688,150 @@ def create_html_gallery(
             opacity: 0.8;
             transition: opacity 0.2s ease, transform 0.2s ease;
         }}
-        .stats {{
+        .controls {{
             background: white;
-            padding: 15px;
-            border-radius: 10px;
+            padding: 20px;
+            border-radius: 12px;
             margin-bottom: 30px;
-            text-align: center;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }}
+        .controls-row {{
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
             gap: 15px;
+        }}
+        .search-container {{
+            flex: 1;
+            min-width: 200px;
+            max-width: 400px;
+            position: relative;
+        }}
+        .search-input {{
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            outline: none;
+        }}
+        .search-input:focus {{
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }}
+        .search-input::placeholder {{
+            color: #999;
+        }}
+        .search-icon {{
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            pointer-events: none;
+        }}
+        .clear-search {{
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #e0e0e0;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #666;
+            transition: background 0.2s ease;
+        }}
+        .clear-search:hover {{
+            background: #ccc;
+        }}
+        .clear-search.visible {{
+            display: flex;
+        }}
+        .filter-section {{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }}
+        .filter-label {{
+            font-weight: 600;
+            color: #555;
+            font-size: 0.9em;
+        }}
+        .level-pills {{
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }}
+        .level-pill {{
+            padding: 8px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            background: white;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9em;
+            color: #666;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }}
+        .level-pill:hover {{
+            border-color: #667eea;
+            color: #667eea;
+        }}
+        .level-pill.active {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: transparent;
+            color: white;
+        }}
+        .level-pill[data-level="1"].active {{
+            background: linear-gradient(135deg, #22c55e 0%, #4ade80 100%);
+        }}
+        .level-pill[data-level="2"].active {{
+            background: linear-gradient(135deg, #eab308 0%, #facc15 100%);
+        }}
+        .level-pill[data-level="3"].active {{
+            background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+        }}
+        .level-pill[data-level="4"].active {{
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+        }}
+        .level-pill .count {{
+            background: rgba(0,0,0,0.1);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.85em;
+        }}
+        .level-pill.active .count {{
+            background: rgba(255,255,255,0.25);
+        }}
+        .stats-row {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }}
+        .results-count {{
+            color: #666;
+            font-size: 0.95em;
+        }}
+        .results-count strong {{
+            color: #333;
         }}
         .random-button-container {{
             position: relative;
@@ -773,7 +928,17 @@ def create_html_gallery(
             transform: scale(1.1);
         }}
         @media (max-width: 768px) {{
-            .stats {{
+            .controls-row {{
+                flex-direction: column;
+                align-items: stretch;
+            }}
+            .search-container {{
+                max-width: none;
+            }}
+            .filter-section {{
+                justify-content: center;
+            }}
+            .stats-row {{
                 flex-direction: column;
             }}
         }}
@@ -792,9 +957,15 @@ def create_html_gallery(
             display: flex;
             flex-direction: column;
         }}
+        .card.hidden {{
+            display: none;
+        }}
         .card:hover {{
             transform: translateY(-5px);
             box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+        }}
+        .thumbnail-container {{
+            position: relative;
         }}
         .thumbnail {{
             width: 100%;
@@ -806,6 +977,29 @@ def create_html_gallery(
             justify-content: center;
             color: #999;
             font-size: 14px;
+        }}
+        .card-level-badge {{
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 700;
+            color: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }}
+        .card-level-badge.level-1 {{
+            background: linear-gradient(135deg, #22c55e 0%, #4ade80 100%);
+        }}
+        .card-level-badge.level-2 {{
+            background: linear-gradient(135deg, #eab308 0%, #facc15 100%);
+        }}
+        .card-level-badge.level-3 {{
+            background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+        }}
+        .card-level-badge.level-4 {{
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
         }}
         .card-content {{
             padding: 15px;
@@ -860,6 +1054,20 @@ def create_html_gallery(
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
             font-weight: 500;
+        }}
+        .no-results {{
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            color: white;
+        }}
+        .no-results h3 {{
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }}
+        .no-results p {{
+            opacity: 0.9;
         }}
         @media (max-width: 768px) {{
             .gallery {{
@@ -1070,29 +1278,61 @@ def create_html_gallery(
                 </svg>
             </a>
         </div>
-        <div class="stats">
-            <div>
-                <strong>Total Guides:</strong> {len(pdf_data)}
+        <div class="controls">
+            <div class="controls-row">
+                <div class="search-container">
+                    <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                    <input type="text" class="search-input" id="searchInput" placeholder="Search guides...">
+                    <button class="clear-search" id="clearSearch" onclick="clearSearch()">✕</button>
+                </div>
+                <div class="filter-section">
+                    <span class="filter-label">Filter:</span>
+                    <div class="level-pills">
+                        <button class="level-pill active" data-level="all" onclick="filterByLevel('all')">
+                            All <span class="count">{len(pdf_data)}</span>
+                        </button>
+                        <button class="level-pill" data-level="1" onclick="filterByLevel(1)">
+                            Level 1 <span class="count">{level_counts[1]}</span>
+                        </button>
+                        <button class="level-pill" data-level="2" onclick="filterByLevel(2)">
+                            Level 2 <span class="count">{level_counts[2]}</span>
+                        </button>
+                        <button class="level-pill" data-level="3" onclick="filterByLevel(3)">
+                            Level 3 <span class="count">{level_counts[3]}</span>
+                        </button>
+                        <button class="level-pill" data-level="4" onclick="filterByLevel(4)">
+                            Level 4 <span class="count">{level_counts[4]}</span>
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div class="button-group">
-                <div class="random-button-container">
-                    <button class="random-button" onclick="startRandomSelection(null)">🎲 Random</button>
-                    <button class="dropdown-toggle" onclick="toggleDropdown(event)">
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-                            <path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </button>
-                    <div class="dropdown-menu" id="levelDropdown">
-                        <div class="dropdown-item" onclick="startRandomSelection(null)">🎲 Any Level</div>
-                        <div class="dropdown-item" onclick="startRandomSelection(1)">⭐ Level 1</div>
-                        <div class="dropdown-item" onclick="startRandomSelection(2)">⭐⭐ Level 2</div>
-                        <div class="dropdown-item" onclick="startRandomSelection(3)">⭐⭐⭐ Level 3</div>
-                        <div class="dropdown-item" onclick="startRandomSelection(4)">⭐⭐⭐⭐ Level 4</div>
+            <div class="stats-row">
+                <div class="results-count">
+                    Showing <strong id="visibleCount">{len(pdf_data)}</strong> of <strong>{len(pdf_data)}</strong> guides
+                </div>
+                <div class="button-group">
+                    <div class="random-button-container">
+                        <button class="random-button" onclick="startRandomSelection(null)">🎲 Random</button>
+                        <button class="dropdown-toggle" onclick="toggleDropdown(event)">
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                                <path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <div class="dropdown-menu" id="levelDropdown">
+                            <div class="dropdown-item" onclick="startRandomSelection(null)">🎲 Any Level</div>
+                            <div class="dropdown-item" onclick="startRandomSelection(1)">⭐ Level 1</div>
+                            <div class="dropdown-item" onclick="startRandomSelection(2)">⭐⭐ Level 2</div>
+                            <div class="dropdown-item" onclick="startRandomSelection(3)">⭐⭐⭐ Level 3</div>
+                            <div class="dropdown-item" onclick="startRandomSelection(4)">⭐⭐⭐⭐ Level 4</div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="gallery">
+        <div class="gallery" id="gallery">
 """
 
     for pdf_url, thumb_data, title, pdf_filename in pdf_data:
@@ -1122,6 +1362,12 @@ def create_html_gallery(
         level = extract_level(title)
         video_url = find_best_video_match(title, video_map, level=level)
 
+        # Get display title (without level prefix) and level badge
+        display_title = get_display_title(title)
+        level_badge_html = ""
+        if level:
+            level_badge_html = f'<span class="card-level-badge level-{level}">Level {level}</span>'
+
         # Build links section
         links_html = (
             f'<a href="{escape(pdf_path)}" class="card-link" target="_blank">View Guide →</a>'
@@ -1132,10 +1378,13 @@ def create_html_gallery(
             links_html = f'<div class="card-links">{links_html}</div>'
 
         html_content += f"""
-            <div class="card">
-                {thumbnail_html}
+            <div class="card" data-level="{level or ''}" data-title="{escape(display_title.lower())}">
+                <div class="thumbnail-container">
+                    {thumbnail_html}
+                    {level_badge_html}
+                </div>
                 <div class="card-content">
-                    <div class="card-title">{escape(title)}</div>
+                    <div class="card-title">{escape(display_title)}</div>
                     {links_html}
                 </div>
             </div>
@@ -1172,20 +1421,19 @@ def create_html_gallery(
     <script>
         // Collect all card data from the gallery
         const cardData = [];
-        document.querySelectorAll('.card').forEach(card => {
+        const allCards = document.querySelectorAll('.card');
+        allCards.forEach(card => {
             const titleEl = card.querySelector('.card-title');
             const thumbEl = card.querySelector('.thumbnail');
             const linkEl = card.querySelector('.card-link');
             const videoEl = card.querySelector('.video-link');
+            const levelBadge = card.querySelector('.card-level-badge');
 
             const title = titleEl ? titleEl.textContent : 'Guide';
             const thumbSrc = thumbEl && thumbEl.tagName === 'IMG' ? thumbEl.src : null;
             const pdfUrl = linkEl ? linkEl.href : null;
             const videoUrl = videoEl ? videoEl.href : null;
-
-            // Extract level from title
-            const levelMatch = title.match(/level\\s*(\\d+)/i);
-            const level = levelMatch ? parseInt(levelMatch[1]) : null;
+            const level = card.dataset.level ? parseInt(card.dataset.level) : null;
 
             if (pdfUrl) {
                 cardData.push({
@@ -1193,12 +1441,127 @@ def create_html_gallery(
                     thumb: thumbSrc,
                     pdf: pdfUrl,
                     video: videoUrl,
-                    level: level
+                    level: level,
+                    element: card
                 });
             }
         });
 
         let isAnimating = false;
+        let currentLevelFilter = 'all';
+        let currentSearchQuery = '';
+
+        // Fuzzy search scoring
+        function fuzzyMatch(text, query) {
+            if (!query) return { match: true, score: 1 };
+
+            text = text.toLowerCase();
+            query = query.toLowerCase();
+
+            // Exact match
+            if (text.includes(query)) {
+                return { match: true, score: 1 };
+            }
+
+            // Fuzzy matching with scoring
+            let queryIdx = 0;
+            let score = 0;
+            let consecutiveBonus = 0;
+            let lastMatchIdx = -2;
+
+            for (let i = 0; i < text.length && queryIdx < query.length; i++) {
+                if (text[i] === query[queryIdx]) {
+                    score += 1;
+                    if (i === lastMatchIdx + 1) {
+                        consecutiveBonus += 2;
+                    }
+                    lastMatchIdx = i;
+                    queryIdx++;
+                }
+            }
+
+            if (queryIdx === query.length) {
+                const finalScore = (score + consecutiveBonus) / (query.length * 3);
+                return { match: true, score: finalScore };
+            }
+
+            return { match: false, score: 0 };
+        }
+
+        // Apply all filters
+        function applyFilters() {
+            let visibleCount = 0;
+            const gallery = document.getElementById('gallery');
+
+            // Remove existing no-results message
+            const existingNoResults = gallery.querySelector('.no-results');
+            if (existingNoResults) existingNoResults.remove();
+
+            allCards.forEach(card => {
+                const level = card.dataset.level;
+                const title = card.dataset.title || '';
+
+                // Check level filter
+                const levelMatch = currentLevelFilter === 'all' || level === String(currentLevelFilter);
+
+                // Check search filter
+                const searchResult = fuzzyMatch(title, currentSearchQuery);
+
+                if (levelMatch && searchResult.match) {
+                    card.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    card.classList.add('hidden');
+                }
+            });
+
+            // Update count
+            document.getElementById('visibleCount').textContent = visibleCount;
+
+            // Show no results message if needed
+            if (visibleCount === 0) {
+                const noResults = document.createElement('div');
+                noResults.className = 'no-results';
+                noResults.innerHTML = `
+                    <h3>🔍 No guides found</h3>
+                    <p>Try adjusting your search or filter criteria</p>
+                `;
+                gallery.appendChild(noResults);
+            }
+        }
+
+        // Filter by level
+        function filterByLevel(level) {
+            currentLevelFilter = level;
+
+            // Update pill states
+            document.querySelectorAll('.level-pill').forEach(pill => {
+                if (pill.dataset.level === String(level)) {
+                    pill.classList.add('active');
+                } else {
+                    pill.classList.remove('active');
+                }
+            });
+
+            applyFilters();
+        }
+
+        // Search input handler
+        const searchInput = document.getElementById('searchInput');
+        const clearSearchBtn = document.getElementById('clearSearch');
+
+        searchInput.addEventListener('input', function(e) {
+            currentSearchQuery = e.target.value.trim();
+            clearSearchBtn.classList.toggle('visible', currentSearchQuery.length > 0);
+            applyFilters();
+        });
+
+        function clearSearch() {
+            searchInput.value = '';
+            currentSearchQuery = '';
+            clearSearchBtn.classList.remove('visible');
+            applyFilters();
+        }
 
         // Toggle dropdown menu
         function toggleDropdown(event) {
@@ -1227,11 +1590,20 @@ def create_html_gallery(
 
             if (isAnimating) return;
 
-            // Filter cards by level if specified
-            let filteredCards = level ? cardData.filter(c => c.level === level) : cardData;
+            // Get currently visible cards based on filters
+            let filteredCards = cardData.filter(c => {
+                // Apply level filter from dropdown selection or current filter
+                const targetLevel = level !== null ? level : (currentLevelFilter !== 'all' ? currentLevelFilter : null);
+                const levelMatch = !targetLevel || c.level === targetLevel;
+
+                // Apply search filter
+                const searchResult = fuzzyMatch(c.title.toLowerCase(), currentSearchQuery);
+
+                return levelMatch && searchResult.match;
+            });
 
             if (filteredCards.length === 0) {
-                alert(level ? `No guides available for Level ${level}` : 'No guides available');
+                alert(level ? `No guides available for Level ${level}` : 'No guides available with current filters');
                 return;
             }
 
