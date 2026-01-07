@@ -678,33 +678,95 @@ def create_html_gallery(
             flex-wrap: wrap;
             gap: 15px;
         }}
+        .random-button-container {{
+            position: relative;
+            display: inline-flex;
+        }}
         .random-button {{
             padding: 12px 24px;
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 8px 0 0 8px;
             font-size: 1em;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }}
         .random-button:hover {{
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            filter: brightness(1.1);
         }}
         .random-button:active {{
+            filter: brightness(0.95);
+        }}
+        .dropdown-toggle {{
+            padding: 12px 14px;
+            background: linear-gradient(135deg, #e080e8 0%, #e04a5e 100%);
+            color: white;
+            border: none;
+            border-left: 1px solid rgba(255,255,255,0.3);
+            border-radius: 0 8px 8px 0;
+            font-size: 1em;
+            cursor: pointer;
+            transition: filter 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
+        .dropdown-toggle:hover {{
+            filter: brightness(1.1);
+        }}
+        .dropdown-toggle svg {{
+            transition: transform 0.2s ease;
+        }}
+        .dropdown-toggle.open svg {{
+            transform: rotate(180deg);
+        }}
+        .dropdown-menu {{
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 5px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            min-width: 180px;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+        }}
+        .dropdown-menu.open {{
+            opacity: 1;
+            visibility: visible;
             transform: translateY(0);
+        }}
+        .dropdown-item {{
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            color: #333;
+            font-weight: 500;
+            border-bottom: 1px solid #eee;
+        }}
+        .dropdown-item:first-child {{
+            border-radius: 8px 8px 0 0;
+        }}
+        .dropdown-item:last-child {{
+            border-bottom: none;
+            border-radius: 0 0 8px 8px;
+        }}
+        .dropdown-item:hover {{
+            background: linear-gradient(135deg, #f093fb20 0%, #f5576c20 100%);
         }}
         .button-group {{
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
             justify-content: center;
-        }}
-        .video-button {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }}
         .github-link:hover {{
             opacity: 1;
@@ -808,6 +870,194 @@ def create_html_gallery(
                 font-size: 2em;
             }}
         }}
+
+        /* Random selection overlay styles */
+        .random-overlay {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            perspective: 1000px;
+        }}
+        .random-overlay.active {{
+            display: flex;
+        }}
+        .spinning-cards-container {{
+            position: relative;
+            width: 320px;
+            height: 420px;
+        }}
+        .spinning-card {{
+            position: absolute;
+            width: 280px;
+            height: 380px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transform-style: preserve-3d;
+            backface-visibility: hidden;
+        }}
+        .spinning-card .card-thumb {{
+            width: 100%;
+            height: 220px;
+            object-fit: cover;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }}
+        .spinning-card .card-info {{
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }}
+        .spinning-card .card-info h3 {{
+            font-size: 1.2em;
+            color: #333;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }}
+        .spinning-card .card-info .level-badge {{
+            display: inline-block;
+            padding: 4px 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            width: fit-content;
+        }}
+
+        /* Result modal styles */
+        .result-modal {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 10000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }}
+        .result-modal.active {{
+            display: flex;
+        }}
+        .result-card {{
+            background: white;
+            border-radius: 20px;
+            max-width: 400px;
+            width: 100%;
+            overflow: hidden;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+            animation: resultBounce 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }}
+        @keyframes resultBounce {{
+            0% {{ transform: scale(0.3); opacity: 0; }}
+            50% {{ transform: scale(1.05); }}
+            100% {{ transform: scale(1); opacity: 1; }}
+        }}
+        .result-card .result-thumb {{
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 4em;
+        }}
+        .result-card .result-content {{
+            padding: 25px;
+        }}
+        .result-card .result-title {{
+            font-size: 1.4em;
+            color: #333;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }}
+        .result-card .result-level {{
+            display: inline-block;
+            padding: 5px 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }}
+        .result-card .result-buttons {{
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }}
+        .result-card .result-btn {{
+            padding: 14px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, filter 0.2s ease;
+            text-decoration: none;
+            text-align: center;
+            display: block;
+        }}
+        .result-card .result-btn:hover {{
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }}
+        .result-card .guide-btn {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }}
+        .result-card .video-btn {{
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }}
+        .result-card .close-btn {{
+            background: #e0e0e0;
+            color: #666;
+        }}
+
+        /* Confetti styles */
+        .confetti-container {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10001;
+            overflow: hidden;
+        }}
+        .confetti {{
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            opacity: 0;
+        }}
+        @keyframes confettiFall {{
+            0% {{
+                transform: translateY(-100px) rotate(0deg);
+                opacity: 1;
+            }}
+            100% {{
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }}
+        }}
     </style>
 </head>
 <body>
@@ -825,8 +1075,21 @@ def create_html_gallery(
                 <strong>Total Guides:</strong> {len(pdf_data)}
             </div>
             <div class="button-group">
-                <button class="random-button" onclick="openRandomPDF()">🎲 Random Guide</button>
-                <button class="random-button video-button" onclick="openRandomVideo()">🎬 Random Video</button>
+                <div class="random-button-container">
+                    <button class="random-button" onclick="startRandomSelection(null)">🎲 Random</button>
+                    <button class="dropdown-toggle" onclick="toggleDropdown(event)">
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                            <path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <div class="dropdown-menu" id="levelDropdown">
+                        <div class="dropdown-item" onclick="startRandomSelection(null)">🎲 Any Level</div>
+                        <div class="dropdown-item" onclick="startRandomSelection(1)">⭐ Level 1</div>
+                        <div class="dropdown-item" onclick="startRandomSelection(2)">⭐⭐ Level 2</div>
+                        <div class="dropdown-item" onclick="startRandomSelection(3)">⭐⭐⭐ Level 3</div>
+                        <div class="dropdown-item" onclick="startRandomSelection(4)">⭐⭐⭐⭐ Level 4</div>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="gallery">
@@ -881,36 +1144,284 @@ def create_html_gallery(
     html_content += """
         </div>
     </div>
+
+    <!-- Random selection overlay -->
+    <div class="random-overlay" id="randomOverlay">
+        <div class="spinning-cards-container" id="spinningCardsContainer"></div>
+    </div>
+
+    <!-- Result modal -->
+    <div class="result-modal" id="resultModal">
+        <div class="result-card" id="resultCard">
+            <div class="result-thumb" id="resultThumb">📄</div>
+            <div class="result-content">
+                <div class="result-level" id="resultLevel">Level 1</div>
+                <h2 class="result-title" id="resultTitle">Guide Title</h2>
+                <div class="result-buttons">
+                    <a href="#" class="result-btn guide-btn" id="resultGuideBtn" target="_blank">📖 View Guide</a>
+                    <a href="#" class="result-btn video-btn" id="resultVideoBtn" target="_blank" style="display: none;">🎬 Watch Video</a>
+                    <button class="result-btn close-btn" onclick="closeResultModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confetti container -->
+    <div class="confetti-container" id="confettiContainer"></div>
+
     <script>
-        // Collect all PDF links
-        const pdfLinks = [];
-        document.querySelectorAll('.card-link').forEach(link => {{
-            pdfLinks.push(link.href);
-        }});
+        // Collect all card data from the gallery
+        const cardData = [];
+        document.querySelectorAll('.card').forEach(card => {
+            const titleEl = card.querySelector('.card-title');
+            const thumbEl = card.querySelector('.thumbnail');
+            const linkEl = card.querySelector('.card-link');
+            const videoEl = card.querySelector('.video-link');
 
-        // Collect all video links
-        const videoLinks = [];
-        document.querySelectorAll('.video-link').forEach(link => {{
-            videoLinks.push(link.href);
-        }});
+            const title = titleEl ? titleEl.textContent : 'Guide';
+            const thumbSrc = thumbEl && thumbEl.tagName === 'IMG' ? thumbEl.src : null;
+            const pdfUrl = linkEl ? linkEl.href : null;
+            const videoUrl = videoEl ? videoEl.href : null;
 
-        function openRandomPDF() {{
-            if (pdfLinks.length === 0) {{
-                alert('No guides available');
+            // Extract level from title
+            const levelMatch = title.match(/level\\s*(\\d+)/i);
+            const level = levelMatch ? parseInt(levelMatch[1]) : null;
+
+            if (pdfUrl) {
+                cardData.push({
+                    title: title,
+                    thumb: thumbSrc,
+                    pdf: pdfUrl,
+                    video: videoUrl,
+                    level: level
+                });
+            }
+        });
+
+        let isAnimating = false;
+
+        // Toggle dropdown menu
+        function toggleDropdown(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('levelDropdown');
+            const toggle = event.currentTarget;
+            dropdown.classList.toggle('open');
+            toggle.classList.toggle('open');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            const dropdown = document.getElementById('levelDropdown');
+            const toggle = document.querySelector('.dropdown-toggle');
+            if (!e.target.closest('.random-button-container')) {
+                dropdown.classList.remove('open');
+                toggle.classList.remove('open');
+            }
+        });
+
+        // Start the random selection animation
+        function startRandomSelection(level) {
+            // Close dropdown
+            document.getElementById('levelDropdown').classList.remove('open');
+            document.querySelector('.dropdown-toggle').classList.remove('open');
+
+            if (isAnimating) return;
+
+            // Filter cards by level if specified
+            let filteredCards = level ? cardData.filter(c => c.level === level) : cardData;
+
+            if (filteredCards.length === 0) {
+                alert(level ? `No guides available for Level ${level}` : 'No guides available');
                 return;
-            }}
-            const randomIndex = Math.floor(Math.random() * pdfLinks.length);
-            window.open(pdfLinks[randomIndex], '_blank');
-        }}
+            }
 
-        function openRandomVideo() {{
-            if (videoLinks.length === 0) {{
-                alert('No videos available');
-                return;
-            }}
-            const randomIndex = Math.floor(Math.random() * videoLinks.length);
-            window.open(videoLinks[randomIndex], '_blank');
-        }}
+            isAnimating = true;
+
+            // Show overlay
+            const overlay = document.getElementById('randomOverlay');
+            overlay.classList.add('active');
+
+            // Start the card spinning animation
+            animateCardSelection(filteredCards);
+        }
+
+        // Animate through cards with slowing effect
+        function animateCardSelection(cards) {
+            const container = document.getElementById('spinningCardsContainer');
+            const totalDuration = 4000; // 4 seconds total
+            const minInterval = 50; // Fastest interval
+            const maxInterval = 400; // Slowest interval at the end
+
+            let elapsed = 0;
+            let currentCard = null;
+
+            function showCard(card, index) {
+                container.innerHTML = '';
+                const cardEl = createSpinningCard(card);
+                container.appendChild(cardEl);
+                return card;
+            }
+
+            function animate() {
+                // Calculate current interval using easing (slows down over time)
+                const progress = elapsed / totalDuration;
+                const easedProgress = 1 - Math.pow(1 - progress, 3); // Cubic ease out
+                const currentInterval = minInterval + (maxInterval - minInterval) * easedProgress;
+
+                // Pick a random card
+                const randomIndex = Math.floor(Math.random() * cards.length);
+                currentCard = showCard(cards[randomIndex], randomIndex);
+
+                elapsed += currentInterval;
+
+                if (elapsed < totalDuration) {
+                    setTimeout(animate, currentInterval);
+                } else {
+                    // Animation complete - show final result
+                    setTimeout(() => {
+                        showResult(currentCard);
+                    }, 500);
+                }
+            }
+
+            animate();
+        }
+
+        // Create a spinning card element
+        function createSpinningCard(card) {
+            const cardEl = document.createElement('div');
+            cardEl.className = 'spinning-card';
+
+            const levelText = card.level ? `Level ${card.level}` : 'Guide';
+
+            if (card.thumb) {
+                cardEl.innerHTML = `
+                    <img class="card-thumb" src="${card.thumb}" alt="${card.title}">
+                    <div class="card-info">
+                        <span class="level-badge">${levelText}</span>
+                        <h3>${card.title}</h3>
+                    </div>
+                `;
+            } else {
+                cardEl.innerHTML = `
+                    <div class="card-thumb" style="display: flex; align-items: center; justify-content: center; font-size: 4em; color: white;">📄</div>
+                    <div class="card-info">
+                        <span class="level-badge">${levelText}</span>
+                        <h3>${card.title}</h3>
+                    </div>
+                `;
+            }
+
+            return cardEl;
+        }
+
+        // Show the result modal with confetti
+        function showResult(card) {
+            // Hide overlay
+            document.getElementById('randomOverlay').classList.remove('active');
+
+            // Populate result modal
+            const resultThumb = document.getElementById('resultThumb');
+            if (card.thumb) {
+                resultThumb.outerHTML = `<img class="result-thumb" id="resultThumb" src="${card.thumb}" alt="${card.title}">`;
+            } else {
+                resultThumb.outerHTML = `<div class="result-thumb" id="resultThumb">📄</div>`;
+            }
+
+            document.getElementById('resultLevel').textContent = card.level ? `Level ${card.level}` : 'Guide';
+            document.getElementById('resultTitle').textContent = card.title;
+            document.getElementById('resultGuideBtn').href = card.pdf;
+
+            const videoBtn = document.getElementById('resultVideoBtn');
+            if (card.video) {
+                videoBtn.href = card.video;
+                videoBtn.style.display = 'block';
+            } else {
+                videoBtn.style.display = 'none';
+            }
+
+            // Show modal
+            document.getElementById('resultModal').classList.add('active');
+
+            // Launch confetti!
+            launchConfetti();
+
+            isAnimating = false;
+        }
+
+        // Close result modal
+        function closeResultModal() {
+            document.getElementById('resultModal').classList.remove('active');
+        }
+
+        // Close modal on background click
+        document.getElementById('resultModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeResultModal();
+            }
+        });
+
+        // Close modal on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeResultModal();
+                document.getElementById('randomOverlay').classList.remove('active');
+                isAnimating = false;
+            }
+        });
+
+        // Confetti animation
+        function launchConfetti() {
+            const container = document.getElementById('confettiContainer');
+            const colors = ['#f093fb', '#f5576c', '#667eea', '#764ba2', '#ffd700', '#00ff88', '#ff6b6b', '#4ecdc4'];
+            const confettiCount = 150;
+
+            for (let i = 0; i < confettiCount; i++) {
+                setTimeout(() => {
+                    createConfetti(container, colors);
+                }, i * 20);
+            }
+        }
+
+        function createConfetti(container, colors) {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+
+            // Random properties
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const size = Math.random() * 10 + 5;
+            const left = Math.random() * 100;
+            const duration = Math.random() * 2 + 2;
+            const delay = Math.random() * 0.5;
+
+            // Random shape
+            const shapes = ['circle', 'square', 'triangle'];
+            const shape = shapes[Math.floor(Math.random() * shapes.length)];
+
+            confetti.style.left = `${left}%`;
+            confetti.style.width = `${size}px`;
+            confetti.style.height = `${size}px`;
+            confetti.style.backgroundColor = color;
+            confetti.style.animation = `confettiFall ${duration}s ease-out ${delay}s forwards`;
+
+            if (shape === 'circle') {
+                confetti.style.borderRadius = '50%';
+            } else if (shape === 'triangle') {
+                confetti.style.width = '0';
+                confetti.style.height = '0';
+                confetti.style.backgroundColor = 'transparent';
+                confetti.style.borderLeft = `${size/2}px solid transparent`;
+                confetti.style.borderRight = `${size/2}px solid transparent`;
+                confetti.style.borderBottom = `${size}px solid ${color}`;
+            }
+
+            container.appendChild(confetti);
+
+            // Remove confetti after animation
+            setTimeout(() => {
+                confetti.remove();
+            }, (duration + delay) * 1000 + 100);
+        }
     </script>
 </body>
 </html>
